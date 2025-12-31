@@ -1,0 +1,33 @@
+name: VoxPottery
+channels:
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - git
+  - htop
+  - pip:
+    # --- 科学计算 ---
+    - numpy
+    - scipy
+    - sympy
+    
+    # --- 数据与可视化 ---
+    - pandas
+    - matplotlib
+    - plotly
+    - pillow
+    - tqdm
+    
+    # --- 工具 ---
+    - ninja
+    - requests
+    - click
+    - argparse
+    - ipykernel
+    
+    # --- 特定依赖 (已删除 pyvox) ---
+    - sh
+    - tenacity
