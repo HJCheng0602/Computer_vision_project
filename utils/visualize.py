@@ -2,6 +2,10 @@ import numpy as np
 import plotly.graph_objects as go
 import pyvox.parser
 import os
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from scipy.ndimage import binary_erosion
 ## Complete Visualization Functions for Pottery Voxel Dataset
 '''
 **Requirements:**
@@ -87,7 +91,7 @@ def __read_vox__(path):
     return vox
 
 
-def plot(voxel_matrix, save_dir):
+def plot(voxel_matrix, save_dir, filename="voxel_plot.png"):
     '''
     plot the whole voxel matrix, without considering the labels (fragments)
     
@@ -101,19 +105,25 @@ def plot(voxel_matrix, save_dir):
     
     HERE IS A SIMPLE FRAMEWORK, BUT PLEASE ADD save_dir.
     '''
-    voxels = np.array(np.where(voxel_matrix)).T
-    x, y, z = voxels[:, 0], voxels[:, 1], voxels[:, 2]
-    fig = go.Figure(data=go.Scatter3d(x=x, y=y, z=z, mode='markers', marker=\
-                    dict(size=5, symbol='square', color='#ceabb2', line=dict(width=2,color='DarkSlateGrey',))))
-    fig.update_layout()
+    filled = voxel_matrix > 0
+    eroded = binary_erosion(filled, border_value=0)
+    surface = filled ^ eroded 
+    if np.sum(surface) == 0:
+        print(f"Warning: {filename} is empty, skipping plot.")
+        return
 
-    fig.show()
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
     
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir, exist_ok=True)
+    ax.voxels(surface, facecolors='#ceabb2', edgecolors='grey', shade=True, linewidth=0.1)
     
-    save_dir = save_dir + "/voxel_plot.html"
-    fig.write_html(save_dir)
+    ax.set_box_aspect((1, 1, 1))
+    plt.axis('off')
+    
+    save_path = os.path.join(save_dir, filename)
+    plt.savefig(save_path, dpi=200, bbox_inches='tight', pad_inches=0)
+    print(f"Image saved: {save_path}")
+    plt.close() 
 
 def plot_frag(vox_pottery, save_dir):
     '''
@@ -132,25 +142,35 @@ def plot_frag(vox_pottery, save_dir):
         fig.update_layout() & fig.show()
 
     '''
-    fig = go.Figure()
-    colors= ['#ceabb2', '#d05d86', '#7e1b2f', '#c1375b', '#cdc1c3',
-              '#ceabb2', '#d05d86', '#7e1b2f', '#c1375b', '#cdc1c3']
-    for frag_idx in range(1, 11):
-        frag_vox = np.where(vox_pottery == frag_idx)
-        x, y, z = frag_vox[0], frag_vox[1], frag_vox[2]
-        fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='markers', marker=\
-                    dict(size=5, symbol='square', color=colors[frag_idx-1], line=dict(width=2,color='DarkSlateGrey',))))
-    fig.update_layout()
-    fig.show()
+    hex_colors = ['#ceabb2', '#d05d86', '#7e1b2f', '#c1375b', '#cdc1c3',
+                  '#E6E6FA', '#FFD700', '#40E0D0', '#FF69B4', '#8A2BE2']
+    
+    filled = vox_pottery > 0
+    
+    voxel_colors = np.empty(vox_pottery.shape + (4,), dtype=object)
+    
+    unique_labels = np.unique(vox_pottery)
+    for label in unique_labels:
+        if label == 0: continue
+        
+        color_hex = hex_colors[(int(label) - 1) % len(hex_colors)]
+        
+        voxel_colors[vox_pottery == label] = plt.matplotlib.colors.to_rgba(color_hex, alpha=0.9)
+
+    fig = plt.figure(figsize=(10, 10))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.voxels(filled, facecolors=voxel_colors, edgecolors='grey', linewidth=0.3, shade=True)
+    ax.set_box_aspect((1, 1, 1))
+    plt.axis('off')
     if not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
-        
-    
-    save_dir = save_dir + "/voxel_frag_plot.html"
-    fig.write_html(save_dir)    
+    save_path = os.path.join(save_dir, "voxel_frag_plot.png")
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    print(f"Saved to {save_path}")
+    plt.close()
 
 
-def plot_join(vox_1, vox_2):
+def plot_join(vox_1, vox_2, save_dir, filename="joined_plot.png"):
     '''
     Plot two voxels with colors (labels)
     
@@ -171,21 +191,33 @@ def plot_join(vox_1, vox_2):
         fig.update_layout() & fig.show()
 
     '''
-    colors = ['#ceabb2', '#d05d86', '#7e1b2f', '#c1375b', '#cdc1c3',
-              '#ceabb2', '#d05d86', '#7e1b2f', '#c1375b', '#cdc1c3']
-    fig = go.Figure()
-    for frag_idx in range(1, 11):
-        frag_vox_1 = np.where(vox_1 == frag_idx)
-        x1, y1, z1 = frag_vox_1[0], frag_vox_1[1], frag_vox_1[2]
-        fig.add_trace(go.Scatter3d(x=x1, y=y1, z=z1, mode='markers', marker=\
-                    dict(size=5, symbol='square', color=colors[frag_idx-1], line=dict(width=2,color='DarkSlateGrey',))))
-        
-        frag_vox_2 = np.where(vox_2 == frag_idx)
-        x2, y2, z2 = frag_vox_2[0], frag_vox_2[1], frag_vox_2[2]
-        fig.add_trace(go.Scatter3d(x=x2, y=y2, z=z2, mode='markers', marker=\
-                    dict(size=5, symbol='circle', color=colors[frag_idx-1], line=dict(width=2,color='Black',))))
-    fig.update_layout()
-    fig.show()
+    breakpoint()
+    fig = plt.figure(figsize=(10, 10))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    whole_filled = vox_2 > 0
+    whole_eroded = binary_erosion(whole_filled, border_value=0)
+    whole_surface = whole_filled ^ whole_eroded
+    ax.voxels(whole_surface, facecolors=[0.8, 0.8, 0.8, 0.2], edgecolors='grey', linewidth=0.1, shade=False)
+    
+    frag_filled = vox_1 > 0
+    
+    ax.voxels(frag_filled, facecolors='#7e1b2f', edgecolors='black', linewidth=0.3, shade=True)
+
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], marker='s', color='w', markerfacecolor='#7e1b2f', markersize=15, label='Input Fragment'),
+        Line2D([0], [0], marker='s', color='w', markerfacecolor='lightgrey', markersize=15, alpha=0.5, label='Generated Restoration')
+    ]
+    ax.legend(handles=legend_elements, loc='upper right')
+    
+    ax.set_box_aspect((1, 1, 1))
+    plt.axis('off')
+    
+    save_path = os.path.join(save_dir, filename)
+    plt.savefig(save_path, dpi=200, bbox_inches='tight', pad_inches=0)
+    print(f"Comparison Image saved: {save_path}")
+    plt.close()
     
     
     

@@ -10,6 +10,7 @@ from pyvox.models import Vox
 from pyvox.writer import VoxWriter
 
 from model import Generator 
+from visualize import plot, plot_join
 
 available_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -44,47 +45,59 @@ def generate(model, vox_frag):
     return fake, mesh_frag
 
 if __name__ == "__main__":
-    print("=== Start VOX Generation (with PyVox) ===")
-    
+    print("=== Start Inference & Visualization ===")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     CHECKPOINT_PATH = "checkpoints/Z64_Glr0.002_Dlr0.0002_Res64_BS64/generator_epoch_100.pth" 
     TEST_DATA_PATH = "data/processed_data64/test/5/ER_23-n007-t1649439072.npy"
     OUTPUT_DIR = "output64/vox_results"
-
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
+    CUBE_LEN = 64
+    
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     if not os.path.exists(TEST_DATA_PATH):
-        print("Test data not found, using dummy data.")
-        test_frag = np.zeros((32,32,32), dtype=np.uint8)
-        test_frag[10:22, 10:22, 10:22] = 1
+        print(f"[Warning] Test data not found: {TEST_DATA_PATH}")
+        test_frag_raw = np.zeros((CUBE_LEN, CUBE_LEN, CUBE_LEN), dtype=np.uint8)
+        test_frag_raw[20:40, 20:40, 20:40] = 1
+        selected_frag_id = 1
     else:
-        test_frag = np.load(TEST_DATA_PATH)
-    frags = np.unique(test_frag)[1:]
+        test_frag_raw = np.load(TEST_DATA_PATH)
+        frags_ids = np.unique(test_frag_raw)[1:] 
+        selected_frag_id = np.random.choice(frags_ids, size=1, replace=False)[0]
     
-    selected_frag = np.random.choice(frags, size=1, replace=False)
-    test_frag = (test_frag == selected_frag[0]).astype(np.uint8)
+    print(f"-> Selected Fragment ID: {selected_frag_id}")
+
+    input_frag_np = (test_frag_raw == selected_frag_id).astype(np.uint8)
+    
+    input_tensor = torch.from_numpy(input_frag_np).float().unsqueeze(0).unsqueeze(0).to(device)
 
     try:
-        current_len = test_frag.shape[0]
-        model = Generator(cube_len=current_len, z_latent_space=64).to(available_device)
-        checkpoint = torch.load(CHECKPOINT_PATH, map_location=available_device)
+        model = Generator(cube_len=CUBE_LEN, z_latent_space=64).to(device)
+        checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
         model.load_state_dict(checkpoint)
         model.eval()
-        print("Model loaded.")
+        print("-> Model loaded successfully.")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"[Error] Failed to load model: {e}")
         exit()
 
-    print("Generating...")
-    fake_prob, original_frag = generate(model, test_frag)
-    
-    fake_prob = fake_prob.squeeze()
-    original_frag = original_frag.squeeze()
-    
-    final_result = posprocessing(fake_prob, original_frag)
+    print("-> Generating restoration...")
+    with torch.no_grad():
+        fake_logits = model(input_tensor)
+        fake_prob = torch.sigmoid(fake_logits).cpu().numpy().squeeze()
+        generated_binary = (fake_prob > 0.5).astype(np.uint8)
 
-    print("-" * 30)
-    save_vox_file(original_frag, os.path.join(OUTPUT_DIR, "input_frag.vox"))
+    final_result = np.clip(generated_binary + input_frag_np, 0, 1)
+
+    print(f"-> Saving results to {OUTPUT_DIR} ...")
+    
+    save_vox_file(input_frag_np, os.path.join(OUTPUT_DIR, "input_frag.vox"))
     save_vox_file(final_result, os.path.join(OUTPUT_DIR, "completed_result.vox"))
-    print("-" * 30)
+
+    # plot(input_frag_np, OUTPUT_DIR, "view_input.png")
+    
+    # plot(final_result, OUTPUT_DIR, "view_completed.png")
+    
+    plot_join(input_frag_np, final_result, OUTPUT_DIR, "view_comparison.png")
+
+    print("=== Done! ===")
     
