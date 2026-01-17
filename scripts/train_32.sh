@@ -10,7 +10,7 @@ mkdir -p "$MODEL_DIR"
 
 TESTNAME="Z64_Glr0.002_Dlr0.0002_Res32_BS64"
 
-python /data/jincheng/cv_project/train.py \
+python /data/jincheng/slam3r_pose/train.py \
     --Z_latent_space 64 \
     --G_lr 2e-3 \
     --D_lr 2e-4 \

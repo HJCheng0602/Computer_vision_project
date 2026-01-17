@@ -17,7 +17,8 @@ from torch import optim
 from torch.utils import data
 from torch import nn
 from utils.FragmentDataset import FragmentDataset
-from utils.model import Generator, Discriminator
+from utils.model import Generator_Init, Generator_res, Generator_wider
+from utils.model import Discriminator_Init, Discriminator_SN
 import click
 import argparse
 from test import *
@@ -62,6 +63,7 @@ def main():
     parser.add_argument("--test_save_dir", type=str, default="test_results", help="Directory to save test results")
     parser.add_argument("--log_dir", type=str, default="logs", help="Directory for TensorBoard logs")
     parser.add_argument("--log_name", type=str, default="experiment", help="Name for the log directory")
+    parser.add_argument("--model_type", type=str, default="Init", help="Type of model to train (e.g., Init, Wider_G, Wider_GSN, resnet_SN)")
     
     # TODO
     # 解析命令行参数
@@ -91,6 +93,20 @@ def main():
     Discriminator_model = Discriminator(resolution=args.resolution).to(args.device)
     Generator_model = Generator(cube_len=args.resolution, z_latent_space=args.Z_latent_space).to(args.device)
     
+    if args.model_type == "Init":
+        Discriminator_model = Discriminator_Init(resolution=args.resolution).to(args.device)
+        Generator_model = Generator_Init(cube_len=args.resolution, z_latent_space=args.Z_latent_space).to(args.device)
+    elif args.model_type == "Wider_G":
+        Generator_model = Generator_wider(cube_len=args.resolution, z_latent_space=args.Z_latent_space).to(args.device)
+        Discriminator_model = Discriminator_Init(resolution=args.resolution).to(args.device)
+    elif args.model_type == "Wider_GSN":
+        Generator_model = Generator_wider(cube_len=args.resolution, z_latent_space=args.Z_latent_space).to(args.device)
+        Discriminator_model = Discriminator_SN(resolution=args.resolution).to(args.device)
+    elif args.model_type == "resnet_SN":
+        Generator_model = Generator_res(cube_len=args.resolution, z_latent_space=args.Z_latent_space).to(args.device)
+        Discriminator_model = Discriminator_SN(resolution=args.resolution).to(args.device)
+    
+    
     Discriminator_optimizer = optim.Adam(Discriminator_model.parameters(), lr=args.D_lr, betas=(args.beta1, args.beta2))
     Generator_optimizer = optim.Adam(Generator_model.parameters(), lr=args.G_lr, betas=(args.beta1, args.beta2))
     # TODO
@@ -107,7 +123,7 @@ def main():
     adversarial_loss = nn.BCEWithLogitsLoss() 
     
     recon_loss_func = nn.L1Loss() 
-    lambda_recon = 100  
+    lambda_recon = 100
     
     
     ### Training Loop implementation

@@ -8,7 +8,7 @@ EPOCHS=100
 
 mkdir -p "$MODEL_DIR"
 
-TESTNAME="Z64_Glr0.002_Dlr0.0002_Res64_BS64"
+TESTNAME="Z64_Glr0.002_Dlr0.0002_Res64_BS64_Resnet_SN"
 
 python /data/jincheng/slam3r_pose/training.py \
     --Z_latent_space 64 \

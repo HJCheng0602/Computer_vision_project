@@ -2,7 +2,7 @@ import torch
 import os
 import numpy as np
 # 假设你已经把刚才那几个 matplotlib 的 plot 函数放在了同一个文件或者 utils 里
-# from utils.visualization import plot, plot_join 
+from utils.visualize import plot, plot_join 
 
 def test_simple(generator, test_dataloader, save_dir, device):
     """
