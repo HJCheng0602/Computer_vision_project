@@ -6,8 +6,8 @@ the final report is available [here](report/cv_report.pdf)
 ## setup
 To set up the environment, run:
 ```bash
-git clone 
-cd VoxPottery
+git clone https://github.com/HJCheng0602/Computer_vision_project.git
+cd Computer_vision_project
 conda create -n VoxPottery python=3.8 -y
 conda activate VoxPottery
 pip install -r requirements.txt
@@ -54,5 +54,6 @@ To evaluate the trained model, run:
 ```bash
 bash scripts/evaluation.sh
 ```
+
 
 like the visualization script, please be careful to set the correct `MODEL_DIR`, `OUTPUTDIR`, and `MODEL_TYPE` in the `evaluation.sh` script before running it.
